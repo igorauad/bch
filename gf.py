@@ -684,7 +684,12 @@ class Gf2Poly:
         return Gf2Poly(_add_gf2_poly(self.coefs, x.coefs))
 
     def __mul__(self, x):
-        return Gf2Poly(_multiply_gf2_poly(self.coefs, x.coefs))
+        if isinstance(x, Gf2Poly):  # multiply polynomial by polynomial
+            return Gf2Poly(_multiply_gf2_poly(self.coefs, x.coefs))
+        elif x in [0, 1]:  # multiply polynomial by GF(2) scalar
+            return Gf2Poly([x * y for y in self.coefs])
+        else:
+            raise ValueError("* expects a GF(2) polynomial or scalar")
 
     def __mod__(self, x):
         return Gf2Poly(
@@ -719,8 +724,15 @@ class Gf2mPoly:
                         _add_gf2m_poly(self.field, self.coefs, x.coefs))
 
     def __mul__(self, x):
-        return Gf2mPoly(self.field,
-                        _multiply_gf2m_poly(self.field, self.coefs, x.coefs))
+        if isinstance(x, Gf2mPoly):  # multiply polynomial by polynomial
+            return Gf2mPoly(
+                self.field, _multiply_gf2m_poly(self.field, self.coefs,
+                                                x.coefs))
+        elif x in self.field.table:  # multiply polynomial by GF(2^m) scalar
+            return Gf2mPoly(self.field,
+                            [self.field.multiply(x, y) for y in self.coefs])
+        else:
+            raise ValueError("* expects a GF(2^m) polynomial or scalar")
 
     def __eq__(self, x: object) -> bool:
         return self.coefs == x.coefs

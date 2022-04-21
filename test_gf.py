@@ -329,7 +329,26 @@ class TestGf(unittest.TestCase):
         self.assertEqual((g + f).coefs, [1])
         self.assertEqual((g + g).coefs, [])
 
-    def test_gf2_poly_multiplication(self):
+    def test_gf2_poly_by_scalar_multiplication(self):
+        x = Gf2Poly([1, 0, 0, 1, 1])
+        self.assertEqual(x * 1, x)
+        self.assertEqual(x * 0, Gf2Poly([]))
+        with self.assertRaises(ValueError):
+            self.assertEqual(x * 2, Gf2Poly([]))
+
+    def test_gf2m_poly_by_scalar_multiplication(self):
+        m = 4
+        poly_str = "11001"
+        field = GF(m, poly_str)
+        alpha_4 = field.get_element(4)
+        out_of_field = 1 << m
+        x = Gf2mPoly(field, [1, 0, 0, alpha_4])
+        self.assertEqual(x * field.unit, x)
+        self.assertEqual(x * field.zero, Gf2mPoly(field, []))
+        with self.assertRaises(ValueError):
+            self.assertEqual(x * out_of_field, Gf2Poly([]))
+
+    def test_gf2_poly_by_poly_multiplication(self):
         # Example 6.1
         #
         # phi1(x) = x^4 + x + 1
