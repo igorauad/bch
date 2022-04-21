@@ -1,3 +1,5 @@
+from typing import Union
+
 import numpy as np
 
 
@@ -117,6 +119,8 @@ class GF:
             Data type representing the GF(2^m) elements, by default np.uint32.
 
         """
+        if (m <= 1):
+            raise ValueError("m must be > 1")
         self.m = m
         self.poly_str = poly_str
         self.dtype = dtype
@@ -125,6 +129,7 @@ class GF:
         self.table = self._gen_table()
         self.zero = self.table[0]  # additive identity
         self.unit = self.table[1]  # multiplicative identity
+        self.alpha = self.table[2]  # primitive element
         # (2^m by 1) mapping each GF(2^m) element alpha^i to its index "i + 1":
         self.inv_table = self._gen_inv_table(self.table)
 
@@ -704,7 +709,26 @@ class Gf2Poly:
 
 class Gf2mPoly:
 
-    def __init__(self, field, coefs) -> None:
+    def __init__(self, field: GF, coefs: Union[list, Gf2Poly]) -> None:
+        """Construct the GF(2^m) polynomial object
+
+        Parameters
+        ----------
+        field : GF
+            Galois Field object.
+        coefs : Union[list, Gf2Poly]
+            Coefficients from a list or a GF(2) polynomial to be interpreted as
+            a polynomial over GF(2^m).
+
+        Raises
+        ------
+        ValueError
+            If the list of coefficients contains elements that are not in the
+            given GF(2^m) field.
+        """
+        if isinstance(coefs, Gf2Poly):
+            coefs = [field.table[x] for x in coefs.coefs]
+
         if not _is_gf2m_poly(field, coefs):
             raise ValueError("Not a polynomial over GF(2^m)")
 
@@ -736,3 +760,30 @@ class Gf2mPoly:
 
     def __eq__(self, x: object) -> bool:
         return self.coefs == x.coefs
+
+    def eval(self, x):
+        """Evaluate the polynomial p(x) for a given x from GF(2^m)
+
+        Parameters
+        ----------
+        x : self.field.dtype
+            Evaluation value, a GF(2^m) number.
+
+        Returns
+        -------
+        self.field.dtype
+            Evaluated p(x), a GF(2^m) number.
+        """
+        assert x in self.field.table
+
+        if x == self.field.zero:
+            return self.coefs[-1]
+
+        # If p(x) has a term "coef * x^j", note it becomes "coef * alpha^(i*j)"
+        # when evaluated for "x=alpha^i".
+        i = self.field.get_exponent(x)
+        res = 0
+        for j, coef in enumerate(reversed(self.coefs)):
+            if (coef):
+                res ^= self.field.multiply(coef, self.field.get_element(i * j))
+        return res

@@ -389,3 +389,21 @@ class TestGf(unittest.TestCase):
         c = Gf2Poly([0, 0, 0])
         d = Gf2Poly([1, 0, 1, 1])
         self.assertEqual(c % d, Gf2Poly([]))
+
+    def test_gf2m_poly_eval(self):
+        m = 4
+        poly_str = "11001"
+        field = GF(m, poly_str)
+        alpha_3 = field.get_element(3)
+        alpha_4 = field.get_element(4)
+
+        poly = Gf2mPoly(field, [field.unit, 0, 0, alpha_4])
+        self.assertEqual(poly.eval(field.zero), alpha_4)
+        self.assertEqual(poly.eval(field.unit), field.unit ^ alpha_4)
+        self.assertEqual(poly.eval(field.alpha), alpha_3 ^ alpha_4)
+
+        alpha_2 = field.get_element(2)
+        poly = Gf2mPoly(field, [alpha_2, 0, alpha_4])
+        self.assertEqual(poly.eval(field.zero), alpha_4)
+        self.assertEqual(poly.eval(field.unit), alpha_2 ^ alpha_4)
+        self.assertEqual(poly.eval(field.alpha), alpha_4 ^ alpha_4)
