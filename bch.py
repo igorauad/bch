@@ -45,12 +45,12 @@ def _generator_poly(field: GF, t: int):
 class Bch:
 
     def __init__(self, field: GF, t: int) -> None:
-        """Construct the BCH code object
+        """Construct the binary BCH code object
 
         Parameters
         ----------
         field : GF
-            Galois Field object.
+            GF(2^m) Galois field object.
         t : int
             Target error correction capability in bits.
         """
@@ -155,7 +155,8 @@ class Bch:
     def err_loc_polynomial(self, S: np.array) -> Gf2mPoly:
         """Compute the error-location polynomial
 
-        Based on the Berlekamp's iterative algorithm described in Section 6.3.
+        Based on the simplified Berlekamp's iterative algorithm described in
+        Section 6.4, which works only with binary BCH codes.
 
         Parameters
         ----------
@@ -168,64 +169,78 @@ class Bch:
             Error-location polynomial.
         """
 
-        # Form a table iteratively with up to 2*t + 1 rows. The first row is
-        # associated with iteration "mu = -1", the second with "mu = 0". The
-        # first two rows are prefilled and the iterations start for "mu = 1".
-        # For convenience, instead of using mu starting from -1 as in the book,
-        # the following implementation uses mu starting from zero, i.e., the
-        # following "mu" variable is actually "mu - 1" from Section 6.3.
-        nrows = 2 * self.t + 1
-        mu = 1  # starting iteration
+        # Form a table iteratively with up to t + 2 rows.
+        nrows = self.t + 2
 
-        # Iteratively computed error location polynomial. Starts with
-        # sigma^-1(x) = 1 on the first row and sigma^0(x) = 1 on the second.
+        # Prefill the values of mu for each row:
+        mu_vec = np.zeros(nrows)
+        mu_vec[0] = -0.5
+        mu_vec[1:] = np.arange(0, self.t + 1)
+
+        # Iteratively computed error-location polynomial. The first two rows
+        # are prefilled with "sigma(x) = 1". The third row can be prefilled
+        # with the first-degree polynomial "S[0]*x + 1".
         sigma = [
             Gf2mPoly(self.field, [self.field.unit]),
-            Gf2mPoly(self.field, [self.field.unit])
+            Gf2mPoly(self.field, [self.field.unit]),
+            Gf2mPoly(self.field, [S[0], self.field.unit])
         ]
 
-        # Discrepancy from equation (6.24), a GF(2^m) value. The first two rows
-        # have discrepancies equal to 1 and S_1. However, the second row is
-        # computed inside the while loop below, so only the first is prefilled.
+        # Discrepancy, a GF(2^m) value. The first two rows have discrepancies
+        # equal to 1 and S_1 (first syndrome component), respectively.
         d = np.zeros(nrows, dtype=self.field.dtype)
         d[0] = self.field.unit
+        d[1] = S[0]
 
-        while (mu <= 2 * self.t):
-            # mu-th discrepancy from equation (6.24)
-            d[mu] = S[mu - 1]  # e.g., for mu=1, pick S[0]
-            for j, coef in enumerate(reversed(sigma[mu].coefs[:-1])):
+        row = 2
+        while (row <= self.t):
+            mu = mu_vec[row]
+            two_mu = int(2 * mu)
+
+            # Discrepancy from equation (6.42)
+            #
+            # NOTE: here we compute d_mu instead of d_(mu+1) as in (6.42).
+            # Hence, the indexes based on mu in (6.42) have to be adjusted. For
+            # instance, S_(2mu + 3) becomes "S_(2*(mu-1) + 3) = S_(2*mu + 1)".
+            # Also, the book considers syndrome components S_1 to S_2t, which
+            # is equivalent to S[0] to S[2*t - 1] here. Thus, in the end,
+            # S_(2mu + 3) from (6.42) becomes S[2*mu] below, while S_(2mu + 2)
+            # becomes S[2*mu - 1], and so on.
+            d[row] = S[two_mu]  # e.g., for mu=1, pick S[2]
+            for j, coef in enumerate(reversed(sigma[row].coefs[:-1])):
                 if (coef):
-                    d[mu] ^= self.field.multiply(coef, S[mu - j - 2])
+                    d[row] ^= self.field.multiply(coef, S[two_mu - j - 1])
 
             # Next candidate polynomial
-            if d[mu] == 0:
-                sigma.append(sigma[mu])
+            if d[row] == 0:
+                sigma.append(sigma[row])
             else:
                 # Find another row rho prior to the μ-th row such that the
                 # rho-th discrepancy d[rho] is not zero and the difference
-                # between the row number rho and the degree of sigma at this
-                # row has the largest value
-                rho = 0
-                max_diff = -1
-                for j in range(mu - 1, -1, -1):  # row prior to the μ-th row
+                # between twice the row number (2*rho) and the degree of sigma
+                # at this row has the largest value
+                row_rho = 0  # row number where mu=rho
+                max_diff = -2  # maximum diff "2*rho - sigma[row_rho].degree"
+                for j in range(row - 1, -1, -1):  # rows prior to the μ-th row
                     if d[j] != 0:  # discrepancy is not zero
-                        diff = j - sigma[j].degree
+                        diff = (2 * mu_vec[j]) - sigma[j].degree
                         if diff > max_diff:
                             max_diff = diff
-                            rho = j
-                # Equation (6.25)
-                d_mu_inv_d_rho = self.field.divide(d[mu], d[rho])
-                x_mu_minus_rho = Gf2mPoly(self.field,
-                                          [self.field.unit] + (mu - rho) * [0])
-                sigma.append(sigma[mu] +
-                             (x_mu_minus_rho * d_mu_inv_d_rho * sigma[rho]))
+                            row_rho = j
+                rho = mu_vec[row_rho]  # value of mu at the rho-th row
+                # Equation (6.41)
+                d_mu_inv_d_rho = self.field.divide(d[row], d[row_rho])
+                x_two_mu_minus_rho = Gf2mPoly(self.field, [self.field.unit] +
+                                              int(2 * (mu - rho)) * [0])
+                sigma.append(sigma[row] + (x_two_mu_minus_rho *
+                                           d_mu_inv_d_rho * sigma[row_rho]))
 
-            mu += 1
+            row += 1
 
         # If the final polynomial has degree greater than t, there are more
-        # than t errors in the received polynomial rc(X), and generaHy it is
+        # than t errors in the received polynomial rc(X), and generally it is
         # not possible to locate them.
-        return sigma[mu]
+        return sigma[row]
 
     def err_loc_numbers(self, sigma: Gf2mPoly) -> list:
         roots = []
