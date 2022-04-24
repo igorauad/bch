@@ -681,9 +681,9 @@ class Gf2Poly:
         self.coefs = _cut_leading_gf2_poly_zeros(coefs)
 
         # Polynomial degree
-        self.degree = len(self.coefs) - 1 if any(self.coefs) else 0
+        self.degree = len(self.coefs) - 1 if any(self.coefs) else -1
         # NOTE: use self.coefs (without leading zeros) to compute the
-        # polynomial degree.
+        # polynomial degree and assume degree -1 for the zero polynomial.
 
     def __add__(self, x):
         return Gf2Poly(_add_gf2_poly(self.coefs, x.coefs))

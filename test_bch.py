@@ -1,7 +1,26 @@
+import random
 import unittest
+
+import numpy as np
 
 import bch
 from gf import GF, Gf2Poly, Gf2mPoly
+
+
+def flip_rand_bits(word, n_errors):
+    error_loc = random.sample(range(0, len(word)), n_errors)
+    for loc in error_loc:
+        word[loc] ^= 1
+
+
+def get_all_k_bit_messages(k):
+    assert k <= 8
+    msgs = []
+    for i in range(2**k):
+        bit_array = np.unpackbits(np.array([i], dtype=np.uint8))
+        msg = list(bit_array[(8 - k):])  # k-bit message
+        msgs.append(msg)
+    return msgs
 
 
 class TestBch(unittest.TestCase):
@@ -69,6 +88,20 @@ class TestBch(unittest.TestCase):
         self.assertEqual(g15, g13 * Gf2Poly([1, 0, 1, 1]))
         self.assertEqual(code.k, 7)
 
+    def test_encode(self):
+        m = 6
+        t = 15
+        poly_str = "1100001"
+        field = GF(m, poly_str)
+        code = bch.Bch(field, t)
+        msgs = get_all_k_bit_messages(code.k)
+        for msg in msgs:
+            codeword = code.encode(msg)
+            self.assertEqual(len(codeword), code.n)
+            # The codeword should be a multiple of the generator polynomial.
+            rem = Gf2Poly(codeword) % code.g
+            self.assertEqual(rem, Gf2Poly([]))  # no remainder
+
     def test_syndrome(self):
         # Example 6.4
         r = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1]  # r(x) = x^8 + 1
@@ -81,6 +114,18 @@ class TestBch(unittest.TestCase):
         self.assertEqual(S[1], field.get_element(4))
         self.assertEqual(S[2], field.get_element(7))
         self.assertEqual(S[3], field.get_element(8))
+
+    def test_syndrome_no_errors(self):
+        m = 4
+        poly_str = "11001"
+        field = GF(m, poly_str)
+        code = bch.Bch(field, t=2)
+        msgs = get_all_k_bit_messages(code.k)
+        for msg in msgs:
+            codeword = code.encode(msg)
+            S = code.syndrome(codeword)
+            for i in range(2 * code.t):
+                self.assertEqual(S[i], field.zero)
 
     def test_error_correction(self):
         # Example 6.5
@@ -111,4 +156,42 @@ class TestBch(unittest.TestCase):
             field.get_element(3)
         ])
 
-        self.assertEqual(code.correct(r), 15 * [0])
+        self.assertEqual(code.decode(r), code.k * [0])
+
+    def test_error_loc_poly_no_errors(self):
+        m = 4
+        poly_str = "11001"
+        field = GF(m, poly_str)
+        code = bch.Bch(field, t=3)
+        msgs = get_all_k_bit_messages(code.k)
+        for msg in msgs:
+            codeword = code.encode(msg)
+            S = code.syndrome(codeword)
+            err_loc_poly = code.err_loc_polynomial(S)
+            # The error-location polynomial should be sigma(x)=1, a polynomial
+            # of zero degree (i.e., with no roots).
+            self.assertEqual(err_loc_poly, Gf2mPoly(field, [field.unit]))
+            self.assertEqual(err_loc_poly.degree, 0)
+            # The list of error-location numbers should be empty.
+            err_loc_numbers = code.err_loc_numbers(err_loc_poly)
+            self.assertEqual(err_loc_numbers, [])
+
+    def test_encode_decode(self):
+        # BCH code chosen from Table 6.4
+        m = 6
+        t = 15
+        poly_str = "1100001"
+        field = GF(m, poly_str)
+        code = bch.Bch(field, t)
+        msg = list(np.random.randint(2, size=code.k))
+        # Up to t errors can be corrected
+        for n_errors in range(t):
+            codeword = code.encode(msg)
+            flip_rand_bits(codeword, n_errors)
+            decoded_msg = code.decode(codeword)
+            self.assertEqual(msg, decoded_msg)
+        # If there are more than t errors, they cannot be corrected
+        codeword = code.encode(msg)
+        flip_rand_bits(codeword, t + 1)
+        decoded_msg = code.decode(codeword)
+        self.assertNotEqual(msg, decoded_msg)

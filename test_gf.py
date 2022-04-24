@@ -261,7 +261,7 @@ class TestGf(unittest.TestCase):
         self.assertEqual(Gf2Poly([1, 1]).degree, 1)
         self.assertEqual(Gf2Poly([1]).degree, 0)
         self.assertEqual(Gf2Poly([0, 1]).degree, 0)
-        self.assertEqual(Gf2Poly([0]).degree, 0)
+        self.assertEqual(Gf2Poly([0]).degree, -1)
 
     def test_gf2m_poly_degree(self):
         m = 4

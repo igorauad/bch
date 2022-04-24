@@ -3,7 +3,7 @@ import numpy as np
 from gf import GF, Gf2Poly, Gf2mPoly
 
 
-def _generator_poly(field: GF, t: int):
+def _generator_poly(field: GF, t: int) -> Gf2Poly:
     """Generator polynomial of a t-error-correcting BCH code
 
     Parameters
@@ -15,9 +15,8 @@ def _generator_poly(field: GF, t: int):
 
     Returns
     -------
-    list
-        List with the binary coefficients of the generator polynomial, a
-        polynomial over GF(2).
+    Gf2Poly
+        Generator polynomial, a polynomial over GF(2).
 
     """
     # g(x) is not just the product of the minimal polynomials. It is the LCM of
@@ -70,6 +69,48 @@ class Bch:
         for i in range(1, 2 * t + 1):
             alpha_i = field.get_element(i)  # element alpha^i
             self.min_poly.append(field.min_polynomial(alpha_i))
+
+    def encode(self, msg: list) -> list:
+        """Encode the given k-bit message into an n-bit codeword
+
+        In a systematic cyclic code, a codeword c(x) can be expressed as
+        follows:
+
+            c(x) = x^(n-k)*d(x) + rho(x),
+
+        where d(x) is the polynomial of degree k-1 or less (i.e., k bits)
+        representing the original message, and rho(x) is a polynomial of degree
+        "n - k - 1" representing the "n - k" parity bits. The multiplication by
+        "x^(n - k)" is equivalent to zero-padding the original message with
+        "n-k" zeros. These zeros are filled up by the rho(x) term, i.e., the
+        parity bits.
+
+        Since the codeword has to be a multiple of the generator polynomial
+        g(x), it follows that rho(x) is given by:
+
+            rho(x) = x^(n-k)*d(x) mod g(x),
+
+        Adding the remainder rho(x) to "x^(n-k)*d(x)" is the same as
+        subtracting the remainder from "x^(n-k)*d(x)" under GF(2). In the end,
+        after this subtraction, the resulting c(x) becomes a multiple of g(x).
+
+        Parameters
+        ----------
+        msg : list
+            Message with k bits.
+
+        Returns
+        -------
+        list
+            Codeword with n bits.
+        """
+        assert len(msg) == self.k
+        padded_msg = Gf2Poly(msg + self.nparity * [0])  # x^(n-k)*d(x)
+        parity = padded_msg % self.g  # rho(x)
+        # The Gf2Poly class omits the leading zeros of the polynomial. However,
+        # here we need to add them back to form self.nparity bits.
+        n_padding = self.nparity - parity.degree - 1
+        return msg + n_padding * [0] + parity.coefs
 
     def syndrome(self, r: list) -> np.array:
         """Compute the syndrome of a received codeword
@@ -243,19 +284,65 @@ class Bch:
         return sigma[row]
 
     def err_loc_numbers(self, sigma: Gf2mPoly) -> list:
+        """Compute the error-location numbers
+
+        The error-location polynomial comes from the product of up to "t" terms
+        of the form (1 + beta_j*X), where beta_j is the so-called
+        error-location number. Each such term has beta_j^-1 as root since:
+
+            1 + beta_j*X = 1 + beta_j*(beta_j)^-1 = 1 + 1 = 0.
+
+        In other words, the inverse of the error-location number is a root of
+        the error-location polynomial.
+
+        This function starts by searching which elements from GF(2^m) are roots
+        of the error-location polynomial sigma(x). This search is based on
+        trial and error for all non-zero elements of GF(2^m). After that, this
+        function obtains the error-location numbers by inverting the roots.
+
+        Parameters
+        ----------
+        sigma : Gf2mPoly
+            Error-location polynomial, a polynomial over GF(2^m).
+
+        Returns
+        -------
+        list
+            List with the error-location numbers (GF(2^m) elements).
+        """
         roots = []
-        for elem in self.field.table:
+        for elem in self.field.table[1:]:
             if sigma.eval(elem) == self.field.zero:
                 roots.append(elem)
         return [self.field.inverse(x) for x in roots]
 
-    def correct(self, r: list):
-        out = r.copy()
+    def decode(self, r: list) -> list:
+        """Decode the given n-bit codeword into a k-bit message
+
+        Parameters
+        ----------
+        r : list
+            Noisy n-bit received codeword.
+
+        Returns
+        -------
+        list
+            Decoded k-bit message.
+        """
         S = self.syndrome(r)
-        err_loc_poly = self.err_loc_polynomial(S)
-        err_loc_num = self.err_loc_numbers(err_loc_poly)
-        err_loc_exp = [self.field.get_exponent(x) for x in err_loc_num]
-        err_loc = [self.n - 1 - x for x in err_loc_exp]
-        for pos in err_loc:
-            out[pos] ^= 1
-        return out
+        # Try to correct errors if there are non-zero syndrome components:
+        if np.any(S):
+            err_loc_poly = self.err_loc_polynomial(S)
+            err_loc_num = self.err_loc_numbers(err_loc_poly)
+            # An error-location number alpha^j means there is an error in the
+            # polynomial coefficient (bit) multiplying x^j. Here, the
+            # convention is that the highest-degree term is on the left (lowest
+            # index) of the polynomial coefficient list, while the right-most
+            # term (of highest index) is the zero-degree term. Hence, the
+            # coefficient multiplying x^j is at the j-th position from right to
+            # left, or the (n -j -1)-th position from left to right.
+            err_loc_exp = [self.field.get_exponent(x) for x in err_loc_num]
+            err_loc = [self.n - 1 - j for j in err_loc_exp]
+            for idx in err_loc:
+                r[idx] ^= 1
+        return r[:self.k]
