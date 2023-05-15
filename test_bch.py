@@ -195,3 +195,73 @@ class TestBch(unittest.TestCase):
         flip_rand_bits(codeword, t + 1)
         decoded_msg = code.decode(codeword)
         self.assertNotEqual(msg, decoded_msg)
+
+    def test_dvbs2_min_poly(self):
+        """Test DVB-S2's min polynomials composing the generator polynomial"""
+
+        # Normal FECFRAME: based on GF(2^16) and the primitive polynomial given
+        # by g1(x) from Table 6a in the standard.
+        #
+        # NOTE: g1(x) is the minimal polynomial of element alpha^1, namely, the
+        # primitive polynomial that generates the field.
+        m = 16
+        t = 12
+        poly_str = "10110100000000001"
+        field = GF(m, poly_str)
+        code = bch.Bch(field, t)
+        g1 = Gf2Poly([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1])
+        g2 = Gf2Poly([1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1])
+        g3 = Gf2Poly([1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1])
+        g4 = Gf2Poly([1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1])
+        g5 = Gf2Poly([1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1])
+        g6 = Gf2Poly([1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1])
+        g7 = Gf2Poly([1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1])
+        g8 = Gf2Poly([1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1])
+        g9 = Gf2Poly([1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1])
+        g10 = Gf2Poly([1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1])
+        g11 = Gf2Poly([1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1])
+        g12 = Gf2Poly([1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1])
+        self.assertEqual(code.min_poly[0], g1)
+        self.assertEqual(code.min_poly[2], g2)
+        self.assertEqual(code.min_poly[4], g3)
+        self.assertEqual(code.min_poly[6], g4)
+        self.assertEqual(code.min_poly[8], g5)
+        self.assertEqual(code.min_poly[10], g6)
+        self.assertEqual(code.min_poly[12], g7)
+        self.assertEqual(code.min_poly[14], g8)
+        self.assertEqual(code.min_poly[16], g9)
+        self.assertEqual(code.min_poly[18], g10)
+        self.assertEqual(code.min_poly[20], g11)
+        self.assertEqual(code.min_poly[22], g12)
+
+        # Short FECFRAME: based on GF(2^14) and the primitive polynomial given
+        # by g1(x) from Table 6b in the standard.
+        m = 14
+        t = 12
+        poly_str = "110101000000001"
+        field = GF(m, poly_str)
+        code = bch.Bch(field, t)
+        g1 = Gf2Poly([1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1])
+        g2 = Gf2Poly([1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1])
+        g3 = Gf2Poly([1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 1])
+        g4 = Gf2Poly([1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1])
+        g5 = Gf2Poly([1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1])
+        g6 = Gf2Poly([1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1])
+        g7 = Gf2Poly([1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1])
+        g8 = Gf2Poly([1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1])
+        g9 = Gf2Poly([1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1])
+        g10 = Gf2Poly([1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1])
+        g11 = Gf2Poly([1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1])
+        g12 = Gf2Poly([1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1])
+        self.assertEqual(code.min_poly[0], g1)  # g1(x)
+        self.assertEqual(code.min_poly[2], g2)  # g2(x)
+        self.assertEqual(code.min_poly[4], g3)  # g3(x)
+        self.assertEqual(code.min_poly[6], g4)  # g4(x)
+        self.assertEqual(code.min_poly[8], g5)  # g5(x)
+        self.assertEqual(code.min_poly[10], g6)  # g6(x)
+        self.assertEqual(code.min_poly[12], g7)  # g7(x)
+        self.assertEqual(code.min_poly[14], g8)  # g8(x)
+        self.assertEqual(code.min_poly[16], g9)  # g9(x)
+        self.assertEqual(code.min_poly[18], g10)  # g10(x)
+        self.assertEqual(code.min_poly[20], g11)  # g11(x)
+        self.assertEqual(code.min_poly[22], g12)  # g12(x)
