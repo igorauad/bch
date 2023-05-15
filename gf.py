@@ -393,7 +393,7 @@ class GF:
         similarly to how a polynomial with real coefficients can have complex
         roots.
 
-        By definition, beta is the root of the minimal polynomial phi(x) to be
+        By definition, beta is a root of the minimal polynomial phi(x) to be
         computed. In addition to beta, the conjugates "beta^(2^l)" of element
         beta are the other roots of phi(x). Hence, the minimal polynomial can
         be computed by the product:
@@ -419,7 +419,7 @@ class GF:
 
         """
         if beta == 0:  # 0 is always a root of "f(x) = x"
-            return Gf2Poly([1, 0])
+            return Gf2Poly([0, 1])
 
         exp_beta = self.get_exponent(beta)  # exponent i of alpha^i = beta
         conjugate_list = self.conjugates(exp_beta)  # exponents i^(2^l)
@@ -428,7 +428,7 @@ class GF:
         prod = Gf2mPoly(self, [self.unit])  # start with the unitary element
         for exp in conjugate_list:
             a = Gf2mPoly(self,
-                         [self.unit, self.get_element(exp)])  # x + beta^(2^l)
+                         [self.get_element(exp), self.unit])  # x + beta^(2^l)
             prod *= a
 
         # The resulting polynomial should be a polynomial over GF(2), even
@@ -483,11 +483,11 @@ def _is_gf2m_poly(gf: GF, x: list) -> bool:
     return all([coef in gf.table for coef in x])
 
 
-def _cut_leading_gf2_poly_zeros(x: list) -> list:
-    """Omit the leading zeroes of a polynomial coefficient list
+def _cut_trailing_gf2_poly_zeros(x: list) -> list:
+    """Omit the trailing zeroes of a polynomial coefficient list
 
-    For instance, if "x = [0, 1, 0, 1]", that represents polynomial "x^2 + 1",
-    and is the same as list "[1, 0, 1]". This function removes the leading
+    For instance, if "x = [1, 0, 1, 0]", that represents polynomial "x^2 + 1",
+    and is the same as list "[1, 0, 1]". This function removes the trailing
     zero and returns "[1, 0, 1]".
 
     Parameters
@@ -500,15 +500,15 @@ def _cut_leading_gf2_poly_zeros(x: list) -> list:
     list
         Reduced list of polynomial coefficients.
     """
-    return x[x.index(1):] if any(x) else []
+    return x[:(len(x) - x[::-1].index(1))] if any(x) else []
 
 
-def _cut_leading_gf2m_poly_zeros(x: list) -> list:
-    """Omit the leading zeroes of a GF(2^m) polynomial coefficient list
+def _cut_trailing_gf2m_poly_zeros(x: list) -> list:
+    """Omit the trailing zeroes of a GF(2^m) polynomial coefficient list
 
-    For instance, "[0, 1, 0, alpha^4]" represents polynomial "x^2 + alpha4",
-    and is the same as list "[1, 0, alpha^4]". This function removes the
-    leading zero and returns "[1, 0, alpha^4]".
+    For instance, "[alpha^4, 0, 1, 0]" represents polynomial "x^2 + alpha4",
+    and is the same as list "[alpha^4, 0, 1]". This function removes the
+    leading zero and returns "[alpha^4, 0, 1]".
 
     Parameters
     ----------
@@ -520,8 +520,8 @@ def _cut_leading_gf2m_poly_zeros(x: list) -> list:
     list
         Reduced list of polynomial coefficients.
     """
-    first_non_zero_idx = next((i for i, x in enumerate(x) if x), None)
-    return x[first_non_zero_idx:] if first_non_zero_idx is not None else []
+    trailing_zeros = next((i for i, x in enumerate(reversed(x)) if x), None)
+    return x[:(len(x) - trailing_zeros)] if trailing_zeros is not None else []
 
 
 def _add_gf2_poly(a: list, b: list) -> list:
@@ -541,9 +541,9 @@ def _add_gf2_poly(a: list, b: list) -> list:
     """
     n_pad = len(a) - len(b)
     if n_pad > 0:
-        b = n_pad * [0] + b
+        b = b + n_pad * [0]
     elif n_pad < 0:
-        a = -n_pad * [0] + a
+        a = a + (-n_pad * [0])
 
     return [x ^ y for x, y in zip(a, b)]
 
@@ -565,9 +565,9 @@ def _add_gf2m_poly(gf: GF, a: list, b: list) -> list:
     """
     n_pad = len(a) - len(b)
     if n_pad > 0:
-        b = n_pad * [0] + b
+        b = b + n_pad * [0]
     elif n_pad < 0:
-        a = -n_pad * [0] + a
+        a = a + (-n_pad * [0])
 
     return [x ^ y for x, y in zip(a, b)]
 
@@ -662,23 +662,37 @@ def _remainder_gf2_poly(a: list, b: list, deg_a: int, deg_b: int) -> list:
     if deg_a < deg_b:
         return a
 
-    L = len(b)
+    La = len(a)
+    Lb = len(b)
     remainder = a.copy()
-    nxors = len(a) - len(b) + 1
-    for i in range(nxors):
-        if (remainder[i]):
-            remainder[i:(i + L)] = np.bitwise_xor(remainder[i:(i + L)], b)
+    nxors = La - Lb + 1
+    for i in np.arange(La, La - nxors, -1):
+        if (remainder[i - 1]):
+            remainder[(i - Lb):i] = np.bitwise_xor(remainder[(i - Lb):i], b)
     return remainder
 
 
 class Gf2Poly:
 
-    def __init__(self, coefs) -> None:
+    def __init__(self, coefs: list) -> None:
+        """Construct a GF(2) polynomial object
+
+        Parameters
+        ----------
+        coefs : list
+            List of polynomial coefficients with the zero-degree coefficient at
+            index 0, the first-degree coefficient at index 1, and so on.
+
+        Raises
+        ------
+        ValueError
+            If the list of coefficients contains non-binary elements.
+        """
         if not _is_gf2_poly(coefs):
             raise ValueError("Not a polynomial over GF(2)")
 
         # Polynomial coefficients
-        self.coefs = _cut_leading_gf2_poly_zeros(coefs)
+        self.coefs = _cut_trailing_gf2_poly_zeros(coefs)
 
         # Polynomial degree
         self.degree = len(self.coefs) - 1 if any(self.coefs) else -1
@@ -710,7 +724,7 @@ class Gf2Poly:
 class Gf2mPoly:
 
     def __init__(self, field: GF, coefs: Union[list, Gf2Poly]) -> None:
-        """Construct the GF(2^m) polynomial object
+        """Construct a GF(2^m) polynomial object
 
         Parameters
         ----------
@@ -718,7 +732,8 @@ class Gf2mPoly:
             Galois Field object.
         coefs : Union[list, Gf2Poly]
             Coefficients from a list or a GF(2) polynomial to be interpreted as
-            a polynomial over GF(2^m).
+            a polynomial over GF(2^m), with the zero-degree coefficient at
+            index 0, the first-degree coefficient at index 1, and so on.
 
         Raises
         ------
@@ -733,7 +748,7 @@ class Gf2mPoly:
             raise ValueError("Not a polynomial over GF(2^m)")
 
         # Polynomial coefficients
-        self.coefs = _cut_leading_gf2m_poly_zeros(coefs)
+        self.coefs = _cut_trailing_gf2m_poly_zeros(coefs)
 
         # Polynomial degree
         self.degree = len(self.coefs) - 1 if any(self.coefs) else 0
@@ -777,13 +792,13 @@ class Gf2mPoly:
         assert x in self.field.table
 
         if x == self.field.zero:
-            return self.coefs[-1]
+            return self.coefs[0]
 
         # If p(x) has a term "coef * x^j", note it becomes "coef * alpha^(i*j)"
         # when evaluated for "x=alpha^i".
         i = self.field.get_exponent(x)
         res = 0
-        for j, coef in enumerate(reversed(self.coefs)):
+        for j, coef in enumerate(self.coefs):
             if (coef):
                 res ^= self.field.multiply(coef, self.field.get_element(i * j))
         return res

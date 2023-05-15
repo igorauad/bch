@@ -198,13 +198,15 @@ class TestGf(unittest.TestCase):
         field = GF(m, poly_str)
 
         # Trivial minimal polynomials
-        self.assertEqual(field.min_polynomial(field.table[0]), Gf2Poly([1, 0]))
-        self.assertEqual(field.min_polynomial(field.table[1]), Gf2Poly([1, 1]))
+        self.assertEqual(field.min_polynomial(field.table[0]),
+                         Gf2Poly([0, 1]))  # x
+        self.assertEqual(field.min_polynomial(field.table[1]),
+                         Gf2Poly([1, 1]))  # x + 1
 
         for i in [1, 2, 4, 8]:
             beta = field.get_element(i)  # alpha^i
             self.assertEqual(field.min_polynomial(beta),
-                             Gf2Poly([1, 0, 0, 1, 1]))
+                             Gf2Poly([1, 1, 0, 0, 1]))
         for i in [3, 6, 9, 12]:
             beta = field.get_element(i)  # alpha^i
             self.assertEqual(field.min_polynomial(beta),
@@ -215,13 +217,13 @@ class TestGf(unittest.TestCase):
         for i in [7, 11, 13, 14]:
             beta = field.get_element(i)  # alpha^i
             self.assertEqual(field.min_polynomial(beta),
-                             Gf2Poly([1, 1, 0, 0, 1]))
+                             Gf2Poly([1, 0, 0, 1, 1]))
 
     def test_gf2_poly_assertion(self):
-        Gf2Poly([1, 0, 0, 0, 0, 0, 1])
-        Gf2Poly([1, 0, 1])
-        Gf2Poly([1, 0])
-        Gf2Poly([1])
+        Gf2Poly([1, 0, 0, 0, 0, 0, 1])  # x^6 + 1
+        Gf2Poly([1, 0, 1])  # x^2 + 1
+        Gf2Poly([0, 1])  # x
+        Gf2Poly([1])  # 1
 
         with self.assertRaises(ValueError):
             Gf2Poly([1, 2, 0, 0, 0, 0, 1])
@@ -240,28 +242,28 @@ class TestGf(unittest.TestCase):
         alpha_5 = field.get_element(5)
         out_of_field = 1 << m
 
-        Gf2mPoly(field, [1, 0, 0, 0, 0, 0, alpha_2])
-        Gf2mPoly(field, [1, 0, alpha_5])
-        Gf2mPoly(field, [1, alpha_5])
-        Gf2mPoly(field, [alpha_5])
+        Gf2mPoly(field, [alpha_2, 0, 0, 0, 0, 0, 1])  # x^6 + alpha^2
+        Gf2mPoly(field, [alpha_5, 0, 1])  # x^2 + alpha^5
+        Gf2mPoly(field, [alpha_5, 1])  # x + alpha^5
+        Gf2mPoly(field, [alpha_5])  # alpha^5
 
         with self.assertRaises(ValueError):
-            Gf2mPoly(field, [1, out_of_field, 0, 0, 0, 0, alpha_2])
+            Gf2mPoly(field, [alpha_2, out_of_field, 0, 0, 0, 0, 1])
         with self.assertRaises(ValueError):
-            Gf2mPoly(field, [1, out_of_field, alpha_5])
+            Gf2mPoly(field, [alpha_5, out_of_field, 1])
         with self.assertRaises(ValueError):
-            Gf2mPoly(field, [1, out_of_field])
+            Gf2mPoly(field, [out_of_field, 1])
         with self.assertRaises(ValueError):
             Gf2mPoly(field, [out_of_field])
 
     def test_gf2_poly_degree(self):
-        self.assertEqual(Gf2Poly([1, 0, 1]).degree, 2)
-        self.assertEqual(Gf2Poly([0, 1, 0, 1]).degree, 2)
-        self.assertEqual(Gf2Poly([1, 1, 0, 1]).degree, 3)
-        self.assertEqual(Gf2Poly([1, 1]).degree, 1)
-        self.assertEqual(Gf2Poly([1]).degree, 0)
-        self.assertEqual(Gf2Poly([0, 1]).degree, 0)
-        self.assertEqual(Gf2Poly([0]).degree, -1)
+        self.assertEqual(Gf2Poly([1, 0, 1]).degree, 2)  # x^2 + 1
+        self.assertEqual(Gf2Poly([1, 0, 1, 0]).degree, 2)  # x^2 + 1
+        self.assertEqual(Gf2Poly([1, 0, 1, 1]).degree, 3)  # x^3 + x^2 + 1
+        self.assertEqual(Gf2Poly([1, 1]).degree, 1)  # x + 1
+        self.assertEqual(Gf2Poly([1]).degree, 0)  # 1
+        self.assertEqual(Gf2Poly([1, 0]).degree, 0)  # 1
+        self.assertEqual(Gf2Poly([0]).degree, -1)  #
 
     def test_gf2m_poly_degree(self):
         m = 4
@@ -269,13 +271,12 @@ class TestGf(unittest.TestCase):
         field = GF(m, poly_str)
         alpha_2 = field.get_element(2)
         alpha_5 = field.get_element(5)
-
-        self.assertEqual(Gf2mPoly(field, [1, 0, alpha_2]).degree, 2)
-        self.assertEqual(Gf2mPoly(field, [0, alpha_5, 0, alpha_2]).degree, 2)
-        self.assertEqual(Gf2mPoly(field, [1, alpha_5, 0, alpha_2]).degree, 3)
-        self.assertEqual(Gf2mPoly(field, [1, alpha_2]).degree, 1)
+        self.assertEqual(Gf2mPoly(field, [alpha_2, 0, 1]).degree, 2)
+        self.assertEqual(Gf2mPoly(field, [alpha_2, 0, alpha_5, 0]).degree, 2)
+        self.assertEqual(Gf2mPoly(field, [alpha_2, 0, alpha_5, 1]).degree, 3)
+        self.assertEqual(Gf2mPoly(field, [alpha_2, 1]).degree, 1)
         self.assertEqual(Gf2mPoly(field, [alpha_2]).degree, 0)
-        self.assertEqual(Gf2mPoly(field, [0, alpha_2]).degree, 0)
+        self.assertEqual(Gf2mPoly(field, [alpha_2, 0]).degree, 0)
         self.assertEqual(Gf2mPoly(field, [0]).degree, 0)
 
     def test_gf2_poly_hamming_weight(self):
@@ -291,15 +292,15 @@ class TestGf(unittest.TestCase):
         a = Gf2Poly([1, 0, 1])
         b = Gf2Poly([1, 1])
         c = Gf2Poly([1])
-        d = Gf2Poly([1, 1, 0, 1])
-        e = Gf2Poly([1, 1, 0, 0, 0])
+        d = Gf2Poly([1, 0, 1, 1])
+        e = Gf2Poly([0, 0, 0, 1, 1])
         f = Gf2Poly([1])
         g = Gf2Poly([])
-        self.assertEqual((a + b).coefs, [1, 1, 0])
+        self.assertEqual((a + b).coefs, [0, 1, 1])
         self.assertEqual((a + a).coefs, [])
-        self.assertEqual((a + c).coefs, [1, 0, 0])
-        self.assertEqual((a + d).coefs, [1, 0, 0, 0])
-        self.assertEqual((a + e).coefs, [1, 1, 1, 0, 1])
+        self.assertEqual((a + c).coefs, [0, 0, 1])
+        self.assertEqual((a + d).coefs, [0, 0, 0, 1])
+        self.assertEqual((a + e).coefs, [1, 0, 1, 1, 1])
         self.assertEqual((f + f).coefs, [])
         self.assertEqual((f + g).coefs, [1])
         self.assertEqual((g + f).coefs, [1])
@@ -312,25 +313,25 @@ class TestGf(unittest.TestCase):
         alpha_0 = field.get_element(0)
         alpha_1 = field.get_element(1)
         alpha_4 = field.get_element(4)
-        a = Gf2mPoly(field, [alpha_4, 0, 1])
-        b = Gf2mPoly(field, [alpha_1, 1])
+        a = Gf2mPoly(field, [1, 0, alpha_4])
+        b = Gf2mPoly(field, [1, alpha_1])
         c = Gf2mPoly(field, [1])
-        d = Gf2mPoly(field, [1, alpha_0, 0, 1])
-        e = Gf2mPoly(field, [1, 1, 0, 0, 0])
+        d = Gf2mPoly(field, [1, 0, alpha_0, 1])
+        e = Gf2mPoly(field, [0, 0, 0, 1, 1])
         f = Gf2mPoly(field, [1])
         g = Gf2mPoly(field, [])
-        self.assertEqual((a + b).coefs, [alpha_4, alpha_1, 0])
+        self.assertEqual((a + b).coefs, [0, alpha_1, alpha_4])
         self.assertEqual((a + a).coefs, [])
-        self.assertEqual((a + c).coefs, [alpha_4, 0, 0])
-        self.assertEqual((a + d).coefs, [1, alpha_1, 0, 0])
-        self.assertEqual((a + e).coefs, [1, 1, alpha_4, 0, 1])
+        self.assertEqual((a + c).coefs, [0, 0, alpha_4])
+        self.assertEqual((a + d).coefs, [0, 0, alpha_1, 1])
+        self.assertEqual((a + e).coefs, [1, 0, alpha_4, 1, 1])
         self.assertEqual((f + f).coefs, [])
         self.assertEqual((f + g).coefs, [1])
         self.assertEqual((g + f).coefs, [1])
         self.assertEqual((g + g).coefs, [])
 
     def test_gf2_poly_by_scalar_multiplication(self):
-        x = Gf2Poly([1, 0, 0, 1, 1])
+        x = Gf2Poly([1, 1, 0, 0, 1])  # x^4 + x + 1
         self.assertEqual(x * 1, x)
         self.assertEqual(x * 0, Gf2Poly([]))
         with self.assertRaises(ValueError):
@@ -342,7 +343,7 @@ class TestGf(unittest.TestCase):
         field = GF(m, poly_str)
         alpha_4 = field.get_element(4)
         out_of_field = 1 << m
-        x = Gf2mPoly(field, [1, 0, 0, alpha_4])
+        x = Gf2mPoly(field, [alpha_4, 0, 0, 1])  # x^3 + alpha^4
         self.assertEqual(x * field.unit, x)
         self.assertEqual(x * field.zero, Gf2mPoly(field, []))
         with self.assertRaises(ValueError):
@@ -354,16 +355,16 @@ class TestGf(unittest.TestCase):
         # phi1(x) = x^4 + x + 1
         # phi3(x) = x^4 + x^3 + x^2 + x + 1
         # g(x) = phi1(x) * phi3(x) = x^8 + x^7 + x^6 + x^4 + 1
-        phi1 = Gf2Poly([1, 0, 0, 1, 1])
+        phi1 = Gf2Poly([1, 1, 0, 0, 1])
         phi3 = Gf2Poly([1, 1, 1, 1, 1])
-        g2 = Gf2Poly([1, 1, 1, 0, 1, 0, 0, 0, 1])
+        g2 = Gf2Poly([1, 0, 0, 0, 1, 0, 1, 1, 1])
         self.assertEqual(phi1 * phi3, g2)
 
         # phi5(x) = x^2 + x + 1
         # g(x) = phi1(x) * phi3(x) * phi5(x)
         #      = x^10 + x^8 + x^5 + x^4 + x^2 + x + 1
         phi5 = Gf2Poly([1, 1, 1])
-        g3 = Gf2Poly([1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1])
+        g3 = Gf2Poly([1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1])
         self.assertEqual(g2 * phi5, g3)
 
     def test_gf2_poly_remainder(self):
@@ -373,15 +374,15 @@ class TestGf(unittest.TestCase):
         # g(x) = 1 + x + x^3
         #
         # f(x) = (x^3 + x^2)*g(x) + (x^2 + x + 1)
-        f = Gf2Poly([1, 1, 1, 0, 0, 1, 1])
-        g = Gf2Poly([1, 0, 1, 1])
+        f = Gf2Poly([1, 1, 0, 0, 1, 1, 1])
+        g = Gf2Poly([1, 1, 0, 1])
         self.assertEqual(f % g, Gf2Poly([1, 1, 1]))
 
         # Theorem 2.10: a primitive polynomial of degree m necessarily divides
         # "x^(2^m - 1) + 1". Example for m=3: (x^7 + 1) divided by (x^3 + x +
         # 1) must yield zero remainder.
         a = Gf2Poly([1, 0, 0, 0, 0, 0, 0, 1])
-        b = Gf2Poly([1, 0, 1, 1])
+        b = Gf2Poly([1, 1, 0, 1])
         self.assertEqual(a % b, Gf2Poly([]))
 
         # A zero polynomial divided by a non-zero polynomial should result in
@@ -397,13 +398,14 @@ class TestGf(unittest.TestCase):
         alpha_3 = field.get_element(3)
         alpha_4 = field.get_element(4)
 
-        poly = Gf2mPoly(field, [field.unit, 0, 0, alpha_4])
+        poly = Gf2mPoly(field, [alpha_4, 0, 0, field.unit])  # x^3 + alpha^4
         self.assertEqual(poly.eval(field.zero), alpha_4)
         self.assertEqual(poly.eval(field.unit), field.unit ^ alpha_4)
         self.assertEqual(poly.eval(field.alpha), alpha_3 ^ alpha_4)
 
         alpha_2 = field.get_element(2)
-        poly = Gf2mPoly(field, [alpha_2, 0, alpha_4])
+        poly = Gf2mPoly(field,
+                        [alpha_4, 0, alpha_2])  # alpha^2 * x^2 + alpha^4
         self.assertEqual(poly.eval(field.zero), alpha_4)
         self.assertEqual(poly.eval(field.unit), alpha_2 ^ alpha_4)
         self.assertEqual(poly.eval(field.alpha), alpha_4 ^ alpha_4)

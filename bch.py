@@ -105,12 +105,13 @@ class Bch:
             Codeword with n bits.
         """
         assert len(msg) == self.k
-        padded_msg = Gf2Poly(msg + self.nparity * [0])  # x^(n-k)*d(x)
+        padded_msg = Gf2Poly(self.nparity * [0] + msg)  # x^(n-k)*d(x)
         parity = padded_msg % self.g  # rho(x)
-        # The Gf2Poly class omits the leading zeros of the polynomial. However,
-        # here we need to add them back to form self.nparity bits.
+        # The Gf2Poly class omits the trailing zeros in the list of polynomial
+        # coefficients. However, here we need to add them back to ensure the
+        # parity block has self.nparity bits.
         n_padding = self.nparity - parity.degree - 1
-        return msg + n_padding * [0] + parity.coefs
+        return msg + parity.coefs + n_padding * [0]
 
     def syndrome(self, r: list) -> np.array:
         """Compute the syndrome of a received codeword
@@ -137,7 +138,7 @@ class Bch:
         r(alpha) = e(alpha)
         r(alpha^2) = e(alpha^2)
         ...
-        r(alpha^(2*t)) = c(alpha^(2*t)).
+        r(alpha^(2*t)) = e(alpha^(2*t)).
 
         Each such equation is a syndrome symbol (a GF(2^m) symbol), as they
         depend on the error patter only. That is, the syndrome components are:
@@ -224,7 +225,7 @@ class Bch:
         sigma = [
             Gf2mPoly(self.field, [self.field.unit]),
             Gf2mPoly(self.field, [self.field.unit]),
-            Gf2mPoly(self.field, [S[0], self.field.unit])
+            Gf2mPoly(self.field, [self.field.unit, S[0]])
         ]
 
         # Discrepancy, a GF(2^m) value. The first two rows have discrepancies
@@ -248,7 +249,7 @@ class Bch:
             # S_(2mu + 3) from (6.42) becomes S[2*mu] below, while S_(2mu + 2)
             # becomes S[2*mu - 1], and so on.
             d[row] = S[two_mu]  # e.g., for mu=1, pick S[2]
-            for j, coef in enumerate(reversed(sigma[row].coefs[:-1])):
+            for j, coef in enumerate(sigma[row].coefs[1:]):
                 if (coef):
                     d[row] ^= self.field.multiply(coef, S[two_mu - j - 1])
 
@@ -271,8 +272,9 @@ class Bch:
                 rho = mu_vec[row_rho]  # value of mu at the rho-th row
                 # Equation (6.41)
                 d_mu_inv_d_rho = self.field.divide(d[row], d[row_rho])
-                x_two_mu_minus_rho = Gf2mPoly(self.field, [self.field.unit] +
-                                              int(2 * (mu - rho)) * [0])
+                x_two_mu_minus_rho = Gf2mPoly(
+                    self.field,
+                    int(2 * (mu - rho)) * [0] + [self.field.unit])
                 sigma.append(sigma[row] + (x_two_mu_minus_rho *
                                            d_mu_inv_d_rho * sigma[row_rho]))
 
@@ -335,14 +337,9 @@ class Bch:
             err_loc_poly = self.err_loc_polynomial(S)
             err_loc_num = self.err_loc_numbers(err_loc_poly)
             # An error-location number alpha^j means there is an error in the
-            # polynomial coefficient (bit) multiplying x^j. Here, the
-            # convention is that the highest-degree term is on the left (lowest
-            # index) of the polynomial coefficient list, while the right-most
-            # term (of highest index) is the zero-degree term. Hence, the
-            # coefficient multiplying x^j is at the j-th position from right to
-            # left, or the (n -j -1)-th position from left to right.
+            # polynomial coefficient (bit) multiplying x^j, namely the j-th
+            # bit. Thus, we can correct the error by flipping the j-th bit.
             err_loc_exp = [self.field.get_exponent(x) for x in err_loc_num]
-            err_loc = [self.n - 1 - j for j in err_loc_exp]
-            for idx in err_loc:
-                r[idx] ^= 1
+            for j in err_loc_exp:
+                r[j] ^= 1
         return r[:self.k]

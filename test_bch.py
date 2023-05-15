@@ -32,11 +32,11 @@ class TestBch(unittest.TestCase):
         field = GF(m, poly_str)
         # Double-error-correcting code
         code = bch.Bch(field, t=2)
-        self.assertEqual(code.g, Gf2Poly([1, 1, 1, 0, 1, 0, 0, 0, 1]))
+        self.assertEqual(code.g, Gf2Poly([1, 0, 0, 0, 1, 0, 1, 1, 1]))
         self.assertEqual(code.dmin, 5)
         # Triple-error-correcting code
         code = bch.Bch(field, t=3)
-        self.assertEqual(code.g, Gf2Poly([1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1]))
+        self.assertEqual(code.g, Gf2Poly([1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1]))
         self.assertEqual(code.dmin, 7)
 
         # Table 6.4
@@ -45,15 +45,15 @@ class TestBch(unittest.TestCase):
         field = GF(m, poly_str)
         code = bch.Bch(field, t=1)
         g1 = code.g
-        self.assertEqual(g1, Gf2Poly([1, 0, 0, 0, 0, 1, 1]))
+        self.assertEqual(g1, Gf2Poly([1, 1, 0, 0, 0, 0, 1]))
         self.assertEqual(code.k, 57)
         code = bch.Bch(field, t=2)
         g2 = code.g
-        self.assertEqual(g2, g1 * Gf2Poly([1, 0, 1, 0, 1, 1, 1]))
+        self.assertEqual(g2, g1 * Gf2Poly([1, 1, 1, 0, 1, 0, 1]))
         self.assertEqual(code.k, 51)
         code = bch.Bch(field, t=3)
         g3 = code.g
-        self.assertEqual(g3, g2 * Gf2Poly([1, 1, 0, 0, 1, 1, 1]))
+        self.assertEqual(g3, g2 * Gf2Poly([1, 1, 1, 0, 0, 1, 1]))
         self.assertEqual(code.k, 45)
         code = bch.Bch(field, t=4)
         g4 = code.g
@@ -61,19 +61,19 @@ class TestBch(unittest.TestCase):
         self.assertEqual(code.k, 39)
         code = bch.Bch(field, t=5)
         g5 = code.g
-        self.assertEqual(g5, g4 * Gf2Poly([1, 1, 0, 1]))
+        self.assertEqual(g5, g4 * Gf2Poly([1, 0, 1, 1]))
         self.assertEqual(code.k, 36)
         code = bch.Bch(field, t=6)
         g6 = code.g
-        self.assertEqual(g6, g5 * Gf2Poly([1, 1, 0, 1, 1, 0, 1]))
+        self.assertEqual(g6, g5 * Gf2Poly([1, 0, 1, 1, 0, 1, 1]))
         self.assertEqual(code.k, 30)
         code = bch.Bch(field, t=7)
         g7 = code.g
-        self.assertEqual(g7, g6 * Gf2Poly([1, 0, 1, 1, 0, 1, 1]))
+        self.assertEqual(g7, g6 * Gf2Poly([1, 1, 0, 1, 1, 0, 1]))
         self.assertEqual(code.k, 24)
         code = bch.Bch(field, t=10)
         g10 = code.g
-        self.assertEqual(g10, g7 * Gf2Poly([1, 1, 1, 0, 1, 0, 1]))
+        self.assertEqual(g10, g7 * Gf2Poly([1, 0, 1, 0, 1, 1, 1]))
         self.assertEqual(code.k, 18)
         code = bch.Bch(field, t=11)
         g11 = code.g
@@ -81,11 +81,11 @@ class TestBch(unittest.TestCase):
         self.assertEqual(code.k, 16)
         code = bch.Bch(field, t=13)
         g13 = code.g
-        self.assertEqual(g13, g11 * Gf2Poly([1, 1, 1, 0, 0, 1, 1]))
+        self.assertEqual(g13, g11 * Gf2Poly([1, 1, 0, 0, 1, 1, 1]))
         self.assertEqual(code.k, 10)
         code = bch.Bch(field, t=15)
         g15 = code.g
-        self.assertEqual(g15, g13 * Gf2Poly([1, 0, 1, 1]))
+        self.assertEqual(g15, g13 * Gf2Poly([1, 1, 0, 1]))
         self.assertEqual(code.k, 7)
 
     def test_encode(self):
@@ -104,7 +104,7 @@ class TestBch(unittest.TestCase):
 
     def test_syndrome(self):
         # Example 6.4
-        r = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1]  # r(x) = x^8 + 1
+        r = [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]  # r(x) = x^8 + 1
         m = 4
         poly_str = "11001"
         field = GF(m, poly_str)
@@ -129,7 +129,7 @@ class TestBch(unittest.TestCase):
 
     def test_error_correction(self):
         # Example 6.5
-        r = [0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0]  # x^12 + x^5 + x^3
+        r = [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0]  # x^12 + x^5 + x^3
         m = 4
         poly_str = "11001"
         field = GF(m, poly_str)
@@ -147,7 +147,7 @@ class TestBch(unittest.TestCase):
         alpha_5 = field.get_element(5)
         err_loc_poly = code.err_loc_polynomial(S)
         self.assertEqual(err_loc_poly,
-                         Gf2mPoly(field, [alpha_5, 0, alpha_0, alpha_0]))
+                         Gf2mPoly(field, [alpha_0, alpha_0, 0, alpha_5]))
 
         err_loc_numbers = code.err_loc_numbers(err_loc_poly)
         self.assertEqual(err_loc_numbers, [
@@ -209,18 +209,18 @@ class TestBch(unittest.TestCase):
         poly_str = "10110100000000001"
         field = GF(m, poly_str)
         code = bch.Bch(field, t)
-        g1 = Gf2Poly([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1])
-        g2 = Gf2Poly([1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1])
-        g3 = Gf2Poly([1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1])
-        g4 = Gf2Poly([1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1])
-        g5 = Gf2Poly([1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1])
-        g6 = Gf2Poly([1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1])
-        g7 = Gf2Poly([1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1])
-        g8 = Gf2Poly([1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1])
-        g9 = Gf2Poly([1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1])
-        g10 = Gf2Poly([1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1])
-        g11 = Gf2Poly([1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1])
-        g12 = Gf2Poly([1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1])
+        g1 = Gf2Poly([1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
+        g2 = Gf2Poly([1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1])
+        g3 = Gf2Poly([1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1])
+        g4 = Gf2Poly([1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1])
+        g5 = Gf2Poly([1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1])
+        g6 = Gf2Poly([1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1])
+        g7 = Gf2Poly([1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1])
+        g8 = Gf2Poly([1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1])
+        g9 = Gf2Poly([1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1])
+        g10 = Gf2Poly([1, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1])
+        g11 = Gf2Poly([1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1])
+        g12 = Gf2Poly([1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1])
         self.assertEqual(code.min_poly[0], g1)
         self.assertEqual(code.min_poly[2], g2)
         self.assertEqual(code.min_poly[4], g3)
@@ -241,18 +241,18 @@ class TestBch(unittest.TestCase):
         poly_str = "110101000000001"
         field = GF(m, poly_str)
         code = bch.Bch(field, t)
-        g1 = Gf2Poly([1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1])
-        g2 = Gf2Poly([1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1])
-        g3 = Gf2Poly([1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 1])
-        g4 = Gf2Poly([1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1])
-        g5 = Gf2Poly([1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1])
-        g6 = Gf2Poly([1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1])
-        g7 = Gf2Poly([1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1])
-        g8 = Gf2Poly([1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1])
-        g9 = Gf2Poly([1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1])
-        g10 = Gf2Poly([1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1])
-        g11 = Gf2Poly([1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1])
-        g12 = Gf2Poly([1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1])
+        g1 = Gf2Poly([1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1])
+        g2 = Gf2Poly([1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1])
+        g3 = Gf2Poly([1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1])
+        g4 = Gf2Poly([1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1])
+        g5 = Gf2Poly([1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1])
+        g6 = Gf2Poly([1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1])
+        g7 = Gf2Poly([1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1])
+        g8 = Gf2Poly([1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1])
+        g9 = Gf2Poly([1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1])
+        g10 = Gf2Poly([1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1])
+        g11 = Gf2Poly([1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1])
+        g12 = Gf2Poly([1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1])
         self.assertEqual(code.min_poly[0], g1)  # g1(x)
         self.assertEqual(code.min_poly[2], g2)  # g2(x)
         self.assertEqual(code.min_poly[4], g3)  # g3(x)
