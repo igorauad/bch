@@ -1,0 +1,25 @@
+name: ci
+
+on:
+    push:
+    pull_request:
+
+jobs:
+    build-and-test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install deps
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y cmake g++ libboost-test-dev
+
+            - name: Configure
+              run: cmake -S . -B build -DBCH_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+
+            - name: Build
+              run: cmake --build build
+
+            - name: Test
+              run: ctest --test-dir build --output-on-failure
