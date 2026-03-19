@@ -139,6 +139,15 @@ public:
     /**
      * @brief Decode an input codeword.
      *
+     * @param[in] codeword n-bit input codeword.
+     * @param[out] corrected_bits number of corrected errors (0 -> no errors, -1 ->
+     * uncorrectable, >0 -> number of corrected bits).
+     * @return T Decoded message.
+     */
+    T decode(T codeword, int& corrected_bits) const;
+
+    /**
+     * @overload
      * @param codeword n-bit input codeword.
      * @return T Decoded message.
      */

@@ -461,15 +461,27 @@ void correct_errors(u8_ptr_t decoded_msg,
 }
 
 template <typename T, typename P>
-T bch_codec<T, P>::decode(T codeword) const
+T bch_codec<T, P>::decode(T codeword, int& corrected_bits) const
 {
     const auto s = syndrome(codeword);
     if (s.size() > 0) { // an empty syndrome means no errors
         const auto poly = err_loc_polynomial(s);
         const auto numbers = err_loc_numbers(poly);
         correct_errors(codeword, m_n, m_gf, numbers);
+        corrected_bits =
+            (poly.degree() == static_cast<int>(numbers.size())) ? numbers.size() : -1;
+    } else {
+        corrected_bits = 0;
     }
+
     return (codeword >> m_parity) & m_msg_mask;
+}
+
+template <typename T, typename P>
+T bch_codec<T, P>::decode(T codeword) const
+{
+    int ignored_status;
+    return decode(codeword, ignored_status);
 }
 
 template <typename T, typename P>
@@ -488,7 +500,7 @@ int bch_codec<T, P>::decode(u8_cptr_t codeword, u8_ptr_t decoded_msg) const
         // all error location numbers can be found. The err_loc_numbers function should
         // obtain a number of error location numbers equivalent to the degree of the error
         // location polynomial. Otherwise, not all errors can be corrected.
-        return poly.degree() == static_cast<int>(numbers.size()) ? numbers.size() : -1;
+        return (poly.degree() == static_cast<int>(numbers.size())) ? numbers.size() : -1;
     } else {
         return 0;
     }
