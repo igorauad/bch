@@ -461,15 +461,37 @@ void correct_errors(u8_ptr_t decoded_msg,
 }
 
 template <typename T, typename P>
-T bch_codec<T, P>::decode(T codeword, int& corrected_bits) const
+T bch_codec<T, P>::decode(T codeword, int& corrected_bits, bool verify) const
 {
     const auto s = syndrome(codeword);
     if (s.size() > 0) { // an empty syndrome means no errors
         const auto poly = err_loc_polynomial(s);
         const auto numbers = err_loc_numbers(poly);
         correct_errors(codeword, m_n, m_gf, numbers);
-        corrected_bits =
-            (poly.degree() == static_cast<int>(numbers.size())) ? numbers.size() : -1;
+        // Generally, the error location polynomial has degree greater than t
+        // when the codeword has more than t errors, in which case the errors
+        // cannot be located. Also, even if the error location polynomial has
+        // degree <= t, not necessarily all error location numbers can be found.
+        // The err_loc_numbers function should obtain a number of error location
+        // numbers equivalent to the degree of the error location polynomial.
+        // Otherwise, not all errors can be corrected.
+        //
+        // For further confirmation of uncorrectable errors, verify the
+        // post-correction syndrome if configured to do so.
+        if (poly.degree() != static_cast<int>(numbers.size())) {
+            corrected_bits = -1; // not all errors located
+        } else {
+            // not necessarily all errors corrected
+            if (verify) {
+                // Double check the post-correction syndrome to be more precise
+                // about uncorrectable errors
+                const auto post_corr_syndrome = syndrome(codeword);
+                corrected_bits = post_corr_syndrome.empty() ? numbers.size() : -1;
+            } else {
+                // Less accurate: assume no uncorrectable errors
+                corrected_bits = numbers.size();
+            }
+        }
     } else {
         corrected_bits = 0;
     }
@@ -485,7 +507,7 @@ T bch_codec<T, P>::decode(T codeword) const
 }
 
 template <typename T, typename P>
-int bch_codec<T, P>::decode(u8_cptr_t codeword, u8_ptr_t decoded_msg) const
+int bch_codec<T, P>::decode(u8_cptr_t codeword, u8_ptr_t decoded_msg, bool verify) const
 {
     assert_byte_aligned_n_k(m_n, m_k);
     memcpy(decoded_msg, codeword, m_k_bytes); // systematic bytes
@@ -494,13 +516,23 @@ int bch_codec<T, P>::decode(u8_cptr_t codeword, u8_ptr_t decoded_msg) const
         const auto poly = err_loc_polynomial(s);
         const auto numbers = err_loc_numbers(poly);
         correct_errors(decoded_msg, m_n, m_k, m_gf, numbers);
-        // Generally, the error location polynomial has degree greater than t when the
-        // codeword has more than t errors, in which case the errors cannot be located.
-        // Also, even if the error location polynomial has degree <= t, not necessarily
-        // all error location numbers can be found. The err_loc_numbers function should
-        // obtain a number of error location numbers equivalent to the degree of the error
-        // location polynomial. Otherwise, not all errors can be corrected.
-        return (poly.degree() == static_cast<int>(numbers.size())) ? numbers.size() : -1;
+        // Check the number of corrected bits or uncorrectable errors
+        int corrected_bits;
+        if (poly.degree() != static_cast<int>(numbers.size())) {
+            corrected_bits = -1; // not all errors located
+        } else {
+            // not necessarily all errors corrected
+            if (verify) {
+                // Double check the post-correction syndrome to be more precise
+                // about uncorrectable errors
+                const auto post_corr_syndrome = syndrome(codeword);
+                corrected_bits = post_corr_syndrome.empty() ? numbers.size() : -1;
+            } else {
+                // Less accurate: assume no uncorrectable errors
+                corrected_bits = numbers.size();
+            }
+        }
+        return corrected_bits;
     } else {
         return 0;
     }

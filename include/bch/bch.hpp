@@ -142,9 +142,12 @@ public:
      * @param[in] codeword n-bit input codeword.
      * @param[out] corrected_bits number of corrected errors (0 -> no errors, -1 ->
      * uncorrectable, >0 -> number of corrected bits).
+     * @param[in] verify recompute the syndrome after error correction to detect
+     * residual errors. This makes the detection of uncorrectable errors more
+     * reliable, but adds computational cost.
      * @return T Decoded message.
      */
-    T decode(T codeword, int& corrected_bits) const;
+    T decode(T codeword, int& corrected_bits, bool verify = false) const;
 
     /**
      * @overload
@@ -157,6 +160,9 @@ public:
      * @overload
      * @param codeword Pointer to the received codeword with n/8 bytes.
      * @param decoded_msg Pointer to the decoded message buffer with space for k/8 bytes.
+     * @param verify recompute the syndrome after error correction to detect residual
+     * errors. This makes the detection of uncorrectable errors more reliable, but adds
+     * computational cost.
      * @return int Number of bit errors corrected by the decoder. Set to 0 when the
      * message is error-free and -1 when the decoding fails to correct all errors such
      * that the decoded message has residual bit errors.
@@ -164,7 +170,7 @@ public:
      * data and space.
      * @note This bytes-based decoding is only supported when n and k are multiples of 8.
      */
-    int decode(u8_cptr_t codeword, u8_ptr_t decoded_msg) const;
+    int decode(u8_cptr_t codeword, u8_ptr_t decoded_msg, bool verify = false) const;
 
     /**
      * @brief Get the generator polynomial object.

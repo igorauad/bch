@@ -778,6 +778,21 @@ BOOST_AUTO_TEST_CASE(test_bch_ccsds_231_0_b3)
         BOOST_CHECK_EQUAL(decoded_msg, msg);      // error corrected
         BOOST_CHECK_EQUAL(corrected_bits, num_bit_errors);
     }
+
+    // Confirm uncorrectable status with bit errors exceeding the error
+    // correction capability
+    const uint64_t msg_mask = (1ULL << codec.get_k()) - 1;
+    const uint64_t msg = random_u64() & msg_mask;
+    const uint64_t tx_codeword = codec.encode(msg);
+    constexpr uint32_t num_bit_errors = 4;
+    const uint64_t rx_codeword =
+        flip_random_bits(tx_codeword, codec.get_n(), num_bit_errors);
+    int corrected_bits;
+    const uint64_t decoded_msg =
+        codec.decode(rx_codeword, corrected_bits, /*verify=*/true);
+    BOOST_CHECK_NE(tx_codeword, rx_codeword); // error inserted
+    BOOST_CHECK_NE(decoded_msg, msg);         // residual errors
+    BOOST_CHECK_EQUAL(corrected_bits, -1);    // uncorrectable errors
 }
 
 } // namespace bch
